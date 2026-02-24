@@ -2,6 +2,9 @@ import streamlit as st
 import plotly.graph_objects as go
 import random
 
+# ADDED: Set the page layout to wide so it uses the whole screen
+st.set_page_config(layout="wide", page_title="Process Maturity Grid")
+
 st.title("2x2 Process Maturity Grid")
 
 # initialize project list storage
@@ -46,7 +49,7 @@ fig.update_layout(
                title='Process Maturity →'),
     yaxis=dict(range=[0, 1], tickmode='array', tickvals=[0.25, 0.75], ticktext=['Onshore', 'Offshore'],
                title='Complexity Handled →'),
-    width=700, height=600
+    height=800 # UPDATED: Increased height to 800 and removed hardcoded width
 )
 
 # arrow representing y = -x within unit square
@@ -65,7 +68,7 @@ if projects:
         mode='markers+text',         
         text=names,                  
         textposition='top center',   
-        marker=dict(size=12),
+        marker=dict(size=14),        # Slightly increased dot size for the larger grid
         customdata=list(range(len(projects))),
         hoverinfo='text',
         hovertext=names
