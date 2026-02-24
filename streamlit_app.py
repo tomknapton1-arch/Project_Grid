@@ -1,24 +1,3 @@
-# ensure required libraries are installed and recorded without extra dependencies
-import subprocess, sys, os, importlib.util
-
-def ensure_requirements(packages):
-    path = os.path.join(os.path.dirname(__file__), "requirements.txt")
-    if os.path.exists(path):
-        with open(path) as f:
-            existing = {line.strip() for line in f if line.strip()}
-    else:
-        existing = set()
-    for pkg in packages:
-        if pkg not in existing:
-            with open(path, "a") as f:
-                f.write(pkg + "\n")
-            existing.add(pkg)
-        if importlib.util.find_spec(pkg) is None:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
-
-# REMOVED 'streamlit-plotly-events' as Streamlit now handles clicks natively
-ensure_requirements(["streamlit", "matplotlib", "plotly"])
-
 import streamlit as st
 import plotly.graph_objects as go
 import random
@@ -37,7 +16,7 @@ location = st.sidebar.selectbox("Location", ["Onshore", "Offshore"], key='new_lo
 
 if st.sidebar.button("Submit"):
     if name:
-        # Slightly increased jitter to prevent text/dot overlap
+        # Generate jitter to prevent text/dot overlap
         jx = random.uniform(-0.15, 0.15)
         jy = random.uniform(-0.15, 0.15)
         st.session_state['projects'].append({
@@ -48,7 +27,7 @@ if st.sidebar.button("Submit"):
             "jy": jy,
         })
         st.success(f"Added project '{name}'")
-        st.rerun() # Updated to modern Streamlit rerun command
+        st.rerun() 
     else:
         st.sidebar.warning("Please enter a project name before submitting.")
 
@@ -83,16 +62,16 @@ if projects:
     
     fig.add_trace(go.Scatter(
         x=xs, y=ys, 
-        mode='markers+text',         # ADDED: Tells Plotly to render text
-        text=names,                  # ADDED: Uses the project names as the text
-        textposition='top center',   # ADDED: Puts the text directly above the dot
+        mode='markers+text',         
+        text=names,                  
+        textposition='top center',   
         marker=dict(size=12),
         customdata=list(range(len(projects))),
         hoverinfo='text',
         hovertext=names
     ))
 
-# Render interactive plot natively (fixes double plot and sidebar overlap)
+# Render interactive plot natively
 event = st.plotly_chart(fig, use_container_width=True, on_select="rerun", selection_mode="points")
 
 # If a point was clicked, show edit/delete UI
