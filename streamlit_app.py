@@ -1,66 +1,117 @@
 
 
+# ensure required libraries are installed and recorded
+import pkg_resources, subprocess, sys, os
+
+def ensure_requirements(packages):
+    # install missing packages and append to requirements.txt
+    path = os.path.join(os.path.dirname(__file__), "requirements.txt")
+    # read existing requirements
+    if os.path.exists(path):
+        with open(path) as f:
+            existing = {line.strip() for line in f if line.strip()}
+    else:
+        existing = set()
+    for pkg in packages:
+        if pkg not in existing:
+            with open(path, "a") as f:
+                f.write(pkg + "\n")
+            existing.add(pkg)
+        try:
+            pkg_resources.get_distribution(pkg)
+        except pkg_resources.DistributionNotFound:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
+
+# list the packages that the app relies on
+ensure_requirements(["streamlit", "matplotlib", "streamlit-plotly-events"])
+
 import streamlit as st
-import matplotlib.pyplot as plt
-import numpy as np
+# switch to plotly for interactivity
+from streamlit_plotly_events import plotly_events
+import plotly.graph_objects as go
 
 
 st.title("2x2 Process Maturity Grid")
 
-# Streamlit input for projects
-st.sidebar.header("Add Projects to Grid")
-num_projects = st.sidebar.number_input("Number of Projects", min_value=1, max_value=10, value=1)
-projects = []
-for i in range(num_projects):
-    name = st.sidebar.text_input(f"Project {i+1} Name", key=f"name_{i}")
-    # X: Method (0=Manual, 1=Auto+AI), Y: Location (0=Onshore, 1=Offshore)
-    x = st.sidebar.selectbox(f"{name or 'Project'} Method", ["Manual", "Auto + AI"], key=f"x_{i}")
-    y = st.sidebar.selectbox(f"{name or 'Project'} Location", ["Onshore", "Offshore"], key=f"y_{i}")
-    if name:
-        projects.append({
+# initialize project list storage
+if 'projects' not in st.session_state:
+    st.session_state['projects'] = []
+
+# sidebar form for adding a single project
+with st.sidebar.form("add_project_form", clear_on_submit=True):
+    st.header("Add Project to Grid")
+    name = st.text_input("Project Name")
+    method = st.selectbox("Method", ["Manual", "Auto + AI"])
+    location = st.selectbox("Location", ["Offshore", "Onshore"])
+    submitted = st.form_submit_button("Submit")
+    if submitted and name:
+        st.session_state['projects'].append({
             "name": name,
-            "x": 0 if x == "Manual" else 1,
-            "y": 0 if y == "Onshore" else 1
+            # x=0 for Manual, 1 for Auto+AI
+            "x": 0 if method == "Manual" else 1,
+            # y=0 for Offshore, 1 for Onshore
+            "y": 0 if location == "Offshore" else 1
         })
 
-
-# Create a simple 1×1 square divided into four quadrants
-fig, ax = plt.subplots(figsize=(6, 6))
-# show only positive quadrant from 0 to 1 in both axes
-ax.set_xlim(0, 1)
-ax.set_ylim(0, 1)
-# ticks at extremes (and optionally midpoint)
-ax.set_xticks([0, 0.5, 1])
-ax.set_yticks([0, 0.5, 1])
-ax.set_xticklabels(["0", "", "1"])
-ax.set_yticklabels(["0", "", "1"])
-# thin background grid just for reference
-ax.grid(False)
-# draw dividing lines to form four equal squares
-ax.axhline(0.5, color='gray', linewidth=1)
-ax.axvline(0.5, color='gray', linewidth=1)
-
-# Draw arrow corresponding to y = -x (within the unit square)
-# start at (0,1) and end at (1,0)
-ax.annotate('', xy=(1, 0), xytext=(0, 1),
-            arrowprops=dict(facecolor='red', edgecolor='red', arrowstyle='->', lw=2))
-
-# Add updated axis labels for the requested metrics
-ax.set_xlabel('Process Maturity →')
-ax.set_ylabel('Complexity Handled →')
-ax.xaxis.set_label_coords(0.5, -0.08)
-ax.yaxis.set_label_coords(-0.08, 0.5)
-
-# remove old Pro Maturity text if any (not needed for now)
+# make a local reference to avoid repeated lookups
+projects = st.session_state['projects']
 
 
-# Plot projects as points with labels
-for proj in projects:
-    ax.plot(proj["x"], proj["y"], 'o', markersize=10, label=proj["name"])
-    ax.text(proj["x"]+0.05, proj["y"]+0.05, proj["name"], fontsize=10, color='black')
+# build plotly figure for interactive grid
+fig = go.Figure()
+# quadrant dividing lines
+fig.update_layout(
+    shapes=[
+        dict(type='line', x0=0.5, x1=0.5, y0=0, y1=1, line=dict(color='gray')),
+        dict(type='line', x0=0, x1=1, y0=0.5, y1=0.5, line=dict(color='gray'))
+    ],
+    xaxis=dict(range=[0, 1], tickmode='array', tickvals=[0, 1], ticktext=['Manual', 'AI'],
+               title='Process Maturity →'),
+    yaxis=dict(range=[0, 1], tickmode='array', tickvals=[0, 1], ticktext=['Offshore', 'Onshore'],
+               title='Complexity Handled →'),
+    width=600, height=600
+)
+# arrow representing y = -x within unit square
+fig.add_shape(type='line', x0=0, y0=1, x1=1, y1=0,
+              line=dict(color='red', width=2))
+fig.add_annotation(x=1, y=0, ax=0, ay=1,
+                   xref='x', yref='y', axref='x', ayref='y',
+                   showarrow=True, arrowhead=2, arrowcolor='red')
 
-# Remove top/right spines
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
+# add project points
+if projects:
+    xs = [p['x'] for p in projects]
+    ys = [p['y'] for p in projects]
+    names = [p['name'] for p in projects]
+    fig.add_trace(go.Scatter(
+        x=xs, y=ys, mode='markers', marker=dict(size=12),
+        customdata=list(range(len(projects))),
+        hovertext=names
+    ))
 
-st.pyplot(fig)
+# render interactive plot and capture clicks
+clicked = plotly_events(fig, click_event=True, key='grid')
+
+# if a point was clicked show edit/delete UI
+if clicked and len(clicked) > 0:
+    idx = clicked[0].get('customdata')
+    if idx is not None and 0 <= idx < len(projects):
+        proj = projects[idx]
+        with st.sidebar.expander(f"Edit '{proj['name']}'"):
+            new_name = st.text_input("Project Name", value=proj['name'], key=f"edit_name_{idx}")
+            new_method = st.selectbox("Method", ["Manual", "Auto + AI"],
+                                      index=0 if proj['x'] == 0 else 1, key=f"edit_method_{idx}")
+            new_location = st.selectbox("Location", ["Offshore", "Onshore"],
+                                        index=0 if proj['y'] == 0 else 1, key=f"edit_loc_{idx}")
+            if st.button("Save", key=f"save_{idx}"):
+                proj['name'] = new_name
+                proj['x'] = 0 if new_method == "Manual" else 1
+                proj['y'] = 0 if new_location == "Offshore" else 1
+                st.session_state['projects'][idx] = proj
+                st.experimental_rerun()
+            if st.button("Delete", key=f"delete_{idx}"):
+                st.session_state['projects'].pop(idx)
+                st.experimental_rerun()
+
+# finally display the figure with modern width parameter
+st.plotly_chart(fig, width='stretch')
