@@ -40,7 +40,7 @@ def get_xy_from_quadrant(quadrant_str):
 
 def get_quadrant_from_xy(x, y):
     if x == 0 and y == 1: return "Onshore"
-    if x == 0 and y == 0: return "onshore+offshore+nearshore"
+    if x == 0 and y == 0: return "Onshore + Offshore + Nearshore"
     if x == 1 and y == 0: return "Onshore + Automation"
     if x == 1 and y == 1: return "Onshore + AI"
     return "Onshore"
