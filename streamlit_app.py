@@ -49,7 +49,7 @@ fig.update_layout(
                title='Process Maturity →'),
     yaxis=dict(range=[0, 1], tickmode='array', tickvals=[0.25, 0.75], ticktext=['Onshore', 'Offshore'],
                title='Complexity Handled →'),
-    height=800 # UPDATED: Increased height to 800 and removed hardcoded width
+    height=1000 # UPDATED: Increased height to 800 and removed hardcoded width
 )
 
 # arrow representing y = -x within unit square
