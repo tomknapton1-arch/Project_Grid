@@ -16,12 +16,12 @@ AI_OPTIONS = [
     "Many tasks could be done with AI"
 ]
 
-# Updated quadrant names
+# Updated quadrant names to perfectly match the plot labels
 QUADRANT_OPTIONS = [
-    "Onshore (Top Left)",
-    "onshore+offshore+nearshore (Bottom Left)",
-    "Onshore + Automation (Bottom Right)",
-    "Onshore + AI (Top Right)"
+    "Onshore",
+    "Onshore + Offshore + Nearshore",
+    "Onshore + Automation",
+    "Onshore + AI"
 ]
 
 def get_dot_size(ai_potential_answer):
@@ -32,18 +32,18 @@ def get_dot_size(ai_potential_answer):
     return 14      
 
 def get_xy_from_quadrant(quadrant_str):
-    if "Top Left" in quadrant_str: return 0, 1
-    if "Bottom Left" in quadrant_str: return 0, 0
-    if "Bottom Right" in quadrant_str: return 1, 0
-    if "Top Right" in quadrant_str: return 1, 1
+    if quadrant_str == "Onshore": return 0, 1
+    if quadrant_str == "onshore+offshore+nearshore": return 0, 0
+    if quadrant_str == "Onshore + Automation": return 1, 0
+    if quadrant_str == "Onshore + AI": return 1, 1
     return 0, 0
 
 def get_quadrant_from_xy(x, y):
-    if x == 0 and y == 1: return QUADRANT_OPTIONS[0]
-    if x == 0 and y == 0: return QUADRANT_OPTIONS[1]
-    if x == 1 and y == 0: return QUADRANT_OPTIONS[2]
-    if x == 1 and y == 1: return QUADRANT_OPTIONS[3]
-    return QUADRANT_OPTIONS[0]
+    if x == 0 and y == 1: return "Onshore"
+    if x == 0 and y == 0: return "onshore+offshore+nearshore"
+    if x == 1 and y == 0: return "Onshore + Automation"
+    if x == 1 and y == 1: return "Onshore + AI"
+    return "Onshore"
 
 # ==========================================
 # POP-UP DIALOG FUNCTIONS
@@ -204,4 +204,3 @@ event = st.plotly_chart(fig, use_container_width=True, on_select="rerun", select
 if "selection" in event and "points" in event["selection"] and len(event["selection"]["points"]) > 0:
     clicked_idx = event["selection"]["points"][0]["customdata"]
     edit_submission_dialog(preselected_idx=clicked_idx)
-
