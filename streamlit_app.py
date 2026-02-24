@@ -35,22 +35,32 @@ st.title("2x2 Process Maturity Grid")
 if 'projects' not in st.session_state:
     st.session_state['projects'] = []
 
-# sidebar form for adding a single project
-with st.sidebar.form("add_project_form", clear_on_submit=True):
-    st.header("Add Project to Grid")
-    name = st.text_input("Project Name")
-    method = st.selectbox("Method", ["Manual", "AI"])
-    location = st.selectbox("Location", ["Onshore", "Offshore"])
-    submitted = st.form_submit_button("Submit")
-    if submitted and name:
+# sidebar inputs for adding a single project (no form to avoid confusion)
+st.sidebar.header("Add Project to Grid")
+# use session_state keys to preserve between reruns
+name = st.sidebar.text_input("Project Name", key='new_name')
+method = st.sidebar.selectbox("Method", ["Manual", "AI"], key='new_method')
+location = st.sidebar.selectbox("Location", ["Onshore", "Offshore"], key='new_location')
+if st.sidebar.button("Submit"):
+    if name:
+        # generate small jitter to reduce overlap
+        import random
+        jx = random.uniform(-0.1, 0.1)
+        jy = random.uniform(-0.1, 0.1)
         st.session_state['projects'].append({
             "name": name,
-            # x=0 for Manual, 1 for AI
             "x": 0 if method == "Manual" else 1,
-            # y=0 for Onshore, 1 for Offshore
-            "y": 0 if location == "Onshore" else 1
+            "y": 0 if location == "Onshore" else 1,
+            "jx": jx,
+            "jy": jy,
         })
-        st.experimental_rerun()
+        # clear inputs
+        st.session_state['new_name'] = ''
+        st.session_state['new_method'] = 'Manual'
+        st.session_state['new_location'] = 'Onshore'
+        st.success(f"Added project '{name}'")
+    else:
+        st.sidebar.warning("Please enter a project name before submitting.")
 
 # make a local reference to avoid repeated lookups
 projects = st.session_state['projects']
@@ -77,10 +87,10 @@ fig.add_annotation(x=1, y=0, ax=0, ay=1,
                    xref='x', yref='y', axref='x', ayref='y',
                    showarrow=True, arrowhead=2, arrowcolor='red')
 
-# add project points (map 0/1 to quadrant centers)
+# add project points (map 0/1 to quadrant centers with jitter)
 if projects:
-    xs = [0.25 + 0.5 * p['x'] for p in projects]
-    ys = [0.25 + 0.5 * p['y'] for p in projects]
+    xs = [0.25 + 0.5 * p['x'] + p.get('jx', 0) for p in projects]
+    ys = [0.25 + 0.5 * p['y'] + p.get('jy', 0) for p in projects]
     names = [p['name'] for p in projects]
     fig.add_trace(go.Scatter(
         x=xs, y=ys, mode='markers', marker=dict(size=12),
@@ -105,7 +115,7 @@ if clicked and len(clicked) > 0:
             if st.button("Save", key=f"save_{idx}"):
                 proj['name'] = new_name
                 proj['x'] = 0 if new_method == "Manual" else 1
-                proj['y'] = 0 if new_location == "Offshore" else 1
+                proj['y'] = 0 if new_location == "Onshore" else 1
                 st.session_state['projects'][idx] = proj
                 st.experimental_rerun()
             if st.button("Delete", key=f"delete_{idx}"):
