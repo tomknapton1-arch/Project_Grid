@@ -27,6 +27,7 @@ import streamlit as st
 # switch to plotly for interactivity
 from streamlit_plotly_events import plotly_events
 import plotly.graph_objects as go
+import random
 
 
 st.title("2x2 Process Maturity Grid")
@@ -44,7 +45,6 @@ location = st.sidebar.selectbox("Location", ["Onshore", "Offshore"], key='new_lo
 if st.sidebar.button("Submit"):
     if name:
         # generate small jitter to reduce overlap
-        import random
         jx = random.uniform(-0.1, 0.1)
         jy = random.uniform(-0.1, 0.1)
         st.session_state['projects'].append({
@@ -54,11 +54,8 @@ if st.sidebar.button("Submit"):
             "jx": jx,
             "jy": jy,
         })
-        # clear inputs
-        st.session_state['new_name'] = ''
-        st.session_state['new_method'] = 'Manual'
-        st.session_state['new_location'] = 'Onshore'
         st.success(f"Added project '{name}'")
+        st.experimental_rerun()
     else:
         st.sidebar.warning("Please enter a project name before submitting.")
 
@@ -106,21 +103,22 @@ if clicked and len(clicked) > 0:
     idx = clicked[0].get('customdata')
     if idx is not None and 0 <= idx < len(projects):
         proj = projects[idx]
-        with st.sidebar.expander(f"Edit '{proj['name']}'"):
-            new_name = st.text_input("Project Name", value=proj['name'], key=f"edit_name_{idx}")
-            new_method = st.selectbox("Method", ["Manual", "AI"],
-                                      index=0 if proj['x'] == 0 else 1, key=f"edit_method_{idx}")
-            new_location = st.selectbox("Location", ["Onshore", "Offshore"],
-                                        index=0 if proj['y'] == 0 else 1, key=f"edit_loc_{idx}")
-            if st.button("Save", key=f"save_{idx}"):
-                proj['name'] = new_name
-                proj['x'] = 0 if new_method == "Manual" else 1
-                proj['y'] = 0 if new_location == "Onshore" else 1
-                st.session_state['projects'][idx] = proj
-                st.experimental_rerun()
-            if st.button("Delete", key=f"delete_{idx}"):
-                st.session_state['projects'].pop(idx)
-                st.experimental_rerun()
+        # display edit controls directly instead of expander
+        st.sidebar.subheader(f"Edit '{proj['name']}'")
+        new_name = st.sidebar.text_input("Project Name", value=proj['name'], key=f"edit_name_{idx}")
+        new_method = st.sidebar.selectbox("Method", ["Manual", "AI"],
+                                          index=0 if proj['x'] == 0 else 1, key=f"edit_method_{idx}")
+        new_location = st.sidebar.selectbox("Location", ["Onshore", "Offshore"],
+                                            index=0 if proj['y'] == 0 else 1, key=f"edit_loc_{idx}")
+        if st.sidebar.button("Save", key=f"save_{idx}"):
+            proj['name'] = new_name
+            proj['x'] = 0 if new_method == "Manual" else 1
+            proj['y'] = 0 if new_location == "Onshore" else 1
+            st.session_state['projects'][idx] = proj
+            st.experimental_rerun()
+        if st.sidebar.button("Delete", key=f"delete_{idx}"):
+            st.session_state['projects'].pop(idx)
+            st.experimental_rerun()
 
 # finally display the figure with modern width parameter
 st.plotly_chart(fig, width='stretch')
