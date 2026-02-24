@@ -171,7 +171,7 @@ fig.update_layout(
         dict(x=0.75, y=1.0, text="<b>Onshore + AI</b>", showarrow=False, font=dict(size=22), xanchor='center', yanchor='bottom', xref='x', yref='y'),
         
         # Bottom Left Label
-        dict(x=0.25, y=0.0, text="<b>onshore+offshore+nearshore</b>", showarrow=False, font=dict(size=22), xanchor='center', yanchor='top', xref='x', yref='y'),
+        dict(x=0.25, y=0.0, text="<b>Onshore + Offshore + Nearshore</b>", showarrow=False, font=dict(size=22), xanchor='center', yanchor='top', xref='x', yref='y'),
         
         # Bottom Right Label
         dict(x=0.75, y=0.0, text="<b>Onshore + Automation</b>", showarrow=False, font=dict(size=22), xanchor='center', yanchor='top', xref='x', yref='y')
