@@ -39,17 +39,18 @@ if 'projects' not in st.session_state:
 with st.sidebar.form("add_project_form", clear_on_submit=True):
     st.header("Add Project to Grid")
     name = st.text_input("Project Name")
-    method = st.selectbox("Method", ["Manual", "Auto + AI"])
-    location = st.selectbox("Location", ["Offshore", "Onshore"])
+    method = st.selectbox("Method", ["Manual", "AI"])
+    location = st.selectbox("Location", ["Onshore", "Offshore"])
     submitted = st.form_submit_button("Submit")
     if submitted and name:
         st.session_state['projects'].append({
             "name": name,
-            # x=0 for Manual, 1 for Auto+AI
+            # x=0 for Manual, 1 for AI
             "x": 0 if method == "Manual" else 1,
-            # y=0 for Offshore, 1 for Onshore
-            "y": 0 if location == "Offshore" else 1
+            # y=0 for Onshore, 1 for Offshore
+            "y": 0 if location == "Onshore" else 1
         })
+        st.experimental_rerun()
 
 # make a local reference to avoid repeated lookups
 projects = st.session_state['projects']
@@ -63,9 +64,9 @@ fig.update_layout(
         dict(type='line', x0=0.5, x1=0.5, y0=0, y1=1, line=dict(color='gray')),
         dict(type='line', x0=0, x1=1, y0=0.5, y1=0.5, line=dict(color='gray'))
     ],
-    xaxis=dict(range=[0, 1], tickmode='array', tickvals=[0, 1], ticktext=['Manual', 'AI'],
+    xaxis=dict(range=[0, 1], tickmode='array', tickvals=[0.25, 0.75], ticktext=['Manual', 'AI'],
                title='Process Maturity →'),
-    yaxis=dict(range=[0, 1], tickmode='array', tickvals=[0, 1], ticktext=['Offshore', 'Onshore'],
+    yaxis=dict(range=[0, 1], tickmode='array', tickvals=[0.25, 0.75], ticktext=['Onshore', 'Offshore'],
                title='Complexity Handled →'),
     width=600, height=600
 )
@@ -76,10 +77,10 @@ fig.add_annotation(x=1, y=0, ax=0, ay=1,
                    xref='x', yref='y', axref='x', ayref='y',
                    showarrow=True, arrowhead=2, arrowcolor='red')
 
-# add project points
+# add project points (map 0/1 to quadrant centers)
 if projects:
-    xs = [p['x'] for p in projects]
-    ys = [p['y'] for p in projects]
+    xs = [0.25 + 0.5 * p['x'] for p in projects]
+    ys = [0.25 + 0.5 * p['y'] for p in projects]
     names = [p['name'] for p in projects]
     fig.add_trace(go.Scatter(
         x=xs, y=ys, mode='markers', marker=dict(size=12),
@@ -97,9 +98,9 @@ if clicked and len(clicked) > 0:
         proj = projects[idx]
         with st.sidebar.expander(f"Edit '{proj['name']}'"):
             new_name = st.text_input("Project Name", value=proj['name'], key=f"edit_name_{idx}")
-            new_method = st.selectbox("Method", ["Manual", "Auto + AI"],
+            new_method = st.selectbox("Method", ["Manual", "AI"],
                                       index=0 if proj['x'] == 0 else 1, key=f"edit_method_{idx}")
-            new_location = st.selectbox("Location", ["Offshore", "Onshore"],
+            new_location = st.selectbox("Location", ["Onshore", "Offshore"],
                                         index=0 if proj['y'] == 0 else 1, key=f"edit_loc_{idx}")
             if st.button("Save", key=f"save_{idx}"):
                 proj['name'] = new_name
