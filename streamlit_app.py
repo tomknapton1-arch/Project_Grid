@@ -16,10 +16,10 @@ AI_OPTIONS = [
     "Many tasks could be done with AI"
 ]
 
-# Updated quadrant names to perfectly match the plot labels
+# Updated quadrant names
 QUADRANT_OPTIONS = [
     "Onshore",
-    "Onshore + Offshore + Nearshore",
+    "Offshore & Onshore", # UPDATED LABEL
     "Onshore + Automation",
     "Onshore + AI"
 ]
@@ -33,14 +33,14 @@ def get_dot_size(ai_potential_answer):
 
 def get_xy_from_quadrant(quadrant_str):
     if quadrant_str == "Onshore": return 0, 1
-    if quadrant_str == "Onshore + Offshore + Nearshore": return 0, 0
+    if quadrant_str == "Offshore & Onshore": return 0, 0 # UPDATED LOGIC
     if quadrant_str == "Onshore + Automation": return 1, 0
     if quadrant_str == "Onshore + AI": return 1, 1
     return 0, 0
 
 def get_quadrant_from_xy(x, y):
     if x == 0 and y == 1: return "Onshore"
-    if x == 0 and y == 0: return "Onshore + Offshore + Nearshore"
+    if x == 0 and y == 0: return "Offshore & Onshore" # UPDATED LOGIC
     if x == 1 and y == 0: return "Onshore + Automation"
     if x == 1 and y == 1: return "Onshore + AI"
     return "Onshore"
@@ -171,7 +171,7 @@ fig.update_layout(
         dict(x=0.75, y=1.0, text="<b>Onshore + AI</b>", showarrow=False, font=dict(size=22), xanchor='center', yanchor='bottom', xref='x', yref='y'),
         
         # Bottom Left Label
-        dict(x=0.25, y=0.0, text="<b>Onshore + Offshore + Nearshore</b>", showarrow=False, font=dict(size=22), xanchor='center', yanchor='top', xref='x', yref='y'),
+        dict(x=0.25, y=0.0, text="<b>Offshore & Onshore</b>", showarrow=False, font=dict(size=22), xanchor='center', yanchor='top', xref='x', yref='y'), # UPDATED LABEL
         
         # Bottom Right Label
         dict(x=0.75, y=0.0, text="<b>Onshore + Automation</b>", showarrow=False, font=dict(size=22), xanchor='center', yanchor='top', xref='x', yref='y')
