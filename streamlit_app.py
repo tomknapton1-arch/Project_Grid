@@ -33,7 +33,7 @@ def get_dot_size(ai_potential_answer):
 
 def get_xy_from_quadrant(quadrant_str):
     if quadrant_str == "Onshore": return 0, 1
-    if quadrant_str == "onshore+offshore+nearshore": return 0, 0
+    if quadrant_str == "Onshore + Offshore + Nearshore": return 0, 0
     if quadrant_str == "Onshore + Automation": return 1, 0
     if quadrant_str == "Onshore + AI": return 1, 1
     return 0, 0
