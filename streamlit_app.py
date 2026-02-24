@@ -1,12 +1,11 @@
 
 
-# ensure required libraries are installed and recorded
-import pkg_resources, subprocess, sys, os
+# ensure required libraries are installed and recorded without extra dependencies
+import subprocess, sys, os, importlib.util
 
 def ensure_requirements(packages):
     # install missing packages and append to requirements.txt
     path = os.path.join(os.path.dirname(__file__), "requirements.txt")
-    # read existing requirements
     if os.path.exists(path):
         with open(path) as f:
             existing = {line.strip() for line in f if line.strip()}
@@ -17,9 +16,8 @@ def ensure_requirements(packages):
             with open(path, "a") as f:
                 f.write(pkg + "\n")
             existing.add(pkg)
-        try:
-            pkg_resources.get_distribution(pkg)
-        except pkg_resources.DistributionNotFound:
+        # if module not importable, install it
+        if importlib.util.find_spec(pkg) is None:
             subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
 
 # list the packages that the app relies on
