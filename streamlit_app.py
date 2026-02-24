@@ -2,44 +2,113 @@ import streamlit as st
 import plotly.graph_objects as go
 import random
 
-# ADDED: Set the page layout to wide so it uses the whole screen
+# Set the page layout to wide
 st.set_page_config(layout="wide", page_title="Process Maturity Grid")
 
-st.title("2x2 Process Maturity Grid")
-
-# initialize project list storage
+# Initialize project list storage
 if 'projects' not in st.session_state:
     st.session_state['projects'] = []
 
-# sidebar inputs for adding a single project
-st.sidebar.header("Add Project to Grid")
-name = st.sidebar.text_input("Project Name", key='new_name')
-method = st.sidebar.selectbox("Method", ["Manual", "AI"], key='new_method')
-location = st.sidebar.selectbox("Location", ["Onshore", "Offshore"], key='new_location')
+# ==========================================
+# POP-UP DIALOG FUNCTIONS
+# ==========================================
 
-if st.sidebar.button("Submit"):
-    if name:
-        # Generate jitter to prevent text/dot overlap
-        jx = random.uniform(-0.15, 0.15)
-        jy = random.uniform(-0.15, 0.15)
-        st.session_state['projects'].append({
-            "name": name,
-            "x": 0 if method == "Manual" else 1,
-            "y": 0 if location == "Onshore" else 1,
-            "jx": jx,
-            "jy": jy,
-        })
-        st.success(f"Added project '{name}'")
-        st.rerun() 
-    else:
-        st.sidebar.warning("Please enter a project name before submitting.")
+@st.dialog("Add New Submission")
+def add_submission_dialog():
+    # Using a form allows the "Clear" button to empty fields natively
+    with st.form("add_form", clear_on_submit=True):
+        name = st.text_input("Project Name")
+        method = st.selectbox("Method", ["Manual", "AI"])
+        location = st.selectbox("Location", ["Onshore", "Offshore"])
+        
+        col1, col2 = st.columns(2)
+        submitted = col1.form_submit_button("Submit", type="primary")
+        cleared = col2.form_submit_button("Clear")
+        
+        if submitted:
+            if name:
+                # Generate jitter to prevent text/dot overlap
+                jx = random.uniform(-0.15, 0.15)
+                jy = random.uniform(-0.15, 0.15)
+                st.session_state['projects'].append({
+                    "name": name,
+                    "x": 0 if method == "Manual" else 1,
+                    "y": 0 if location == "Onshore" else 1,
+                    "jx": jx,
+                    "jy": jy,
+                })
+                st.rerun() # This saves the data and closes the pop-up
+            else:
+                st.error("Please enter a project name before submitting.")
+        # If 'cleared' is clicked, the form empties itself and stays open.
+
+@st.dialog("Edit Submission")
+def edit_submission_dialog(preselected_idx=0):
+    if not st.session_state['projects']:
+        st.info("No projects available to edit. Please add a submission first.")
+        return
+        
+    project_names = [p['name'] for p in st.session_state['projects']]
+    
+    # Safety check in case the index is out of bounds
+    if preselected_idx >= len(project_names):
+        preselected_idx = 0
+        
+    # Dropdown to select which project to edit
+    selected_name = st.selectbox("Select Project to Edit", project_names, index=preselected_idx)
+    idx = project_names.index(selected_name)
+    proj = st.session_state['projects'][idx]
+    
+    st.divider()
+    
+    # Edit fields populated with current data
+    new_name = st.text_input("Project Name", value=proj['name'])
+    new_method = st.selectbox("Method", ["Manual", "AI"], index=0 if proj['x'] == 0 else 1)
+    new_location = st.selectbox("Location", ["Onshore", "Offshore"], index=0 if proj['y'] == 0 else 1)
+    
+    col1, col2 = st.columns(2)
+    if col1.button("Save Changes", type="primary", use_container_width=True):
+        proj['name'] = new_name
+        proj['x'] = 0 if new_method == "Manual" else 1
+        proj['y'] = 0 if new_location == "Onshore" else 1
+        st.session_state['projects'][idx] = proj
+        st.rerun() # Saves and closes pop-up
+        
+    if col2.button("Delete Project", use_container_width=True):
+        st.session_state['projects'].pop(idx)
+        st.rerun() # Deletes and closes pop-up
+
+# ==========================================
+# MAIN PAGE LAYOUT
+# ==========================================
+
+# Header area with Title on the left and Buttons on the right
+col_title, col_empty, col_add, col_edit = st.columns([5, 1, 1.5, 1.5])
+
+with col_title:
+    st.title("2x2 Process Maturity Grid")
+
+with col_add:
+    st.write("") # Vertical spacing to align with the title
+    st.write("")
+    if st.button("➕ Add Submission", use_container_width=True):
+        add_submission_dialog()
+
+with col_edit:
+    st.write("") 
+    st.write("")
+    if st.button("✏️ Edit Submission", use_container_width=True):
+        edit_submission_dialog()
 
 projects = st.session_state['projects']
 
-# build plotly figure for interactive grid
+# ==========================================
+# PLOTLY GRID GENERATION
+# ==========================================
+
 fig = go.Figure()
 
-# quadrant dividing lines
+# quadrant dividing lines and layout
 fig.update_layout(
     shapes=[
         dict(type='line', x0=0.5, x1=0.5, y0=0, y1=1, line=dict(color='gray')),
@@ -49,7 +118,7 @@ fig.update_layout(
                title='Process Maturity →'),
     yaxis=dict(range=[0, 1], tickmode='array', tickvals=[0.25, 0.75], ticktext=['Onshore', 'Offshore'],
                title='Complexity Handled →'),
-    height=1000 # UPDATED: Increased height to 800 and removed hardcoded width
+    height=1000 # Height updated to 1000
 )
 
 # arrow representing y = -x within unit square
@@ -68,7 +137,7 @@ if projects:
         mode='markers+text',         
         text=names,                  
         textposition='top center',   
-        marker=dict(size=14),        # Slightly increased dot size for the larger grid
+        marker=dict(size=14),        
         customdata=list(range(len(projects))),
         hoverinfo='text',
         hovertext=names
@@ -77,30 +146,7 @@ if projects:
 # Render interactive plot natively
 event = st.plotly_chart(fig, use_container_width=True, on_select="rerun", selection_mode="points")
 
-# If a point was clicked, show edit/delete UI
+# If a point on the grid is clicked, automatically open the Edit pop-up for that specific point
 if "selection" in event and "points" in event["selection"] and len(event["selection"]["points"]) > 0:
-    idx = event["selection"]["points"][0]["customdata"]
-    
-    if idx is not None and 0 <= idx < len(projects):
-        proj = projects[idx]
-        st.sidebar.divider()
-        st.sidebar.subheader(f"Edit '{proj['name']}'")
-        
-        new_name = st.sidebar.text_input("Project Name", value=proj['name'], key=f"edit_name_{idx}")
-        new_method = st.sidebar.selectbox("Method", ["Manual", "AI"],
-                                          index=0 if proj['x'] == 0 else 1, key=f"edit_method_{idx}")
-        new_location = st.sidebar.selectbox("Location", ["Onshore", "Offshore"],
-                                            index=0 if proj['y'] == 0 else 1, key=f"edit_loc_{idx}")
-        
-        # Put Save and Delete buttons side-by-side
-        col1, col2 = st.sidebar.columns(2)
-        if col1.button("Save", key=f"save_{idx}", type="primary"):
-            proj['name'] = new_name
-            proj['x'] = 0 if new_method == "Manual" else 1
-            proj['y'] = 0 if new_location == "Onshore" else 1
-            st.session_state['projects'][idx] = proj
-            st.rerun()
-            
-        if col2.button("Delete", key=f"delete_{idx}"):
-            st.session_state['projects'].pop(idx)
-            st.rerun()
+    clicked_idx = event["selection"]["points"][0]["customdata"]
+    edit_submission_dialog(preselected_idx=clicked_idx)
