@@ -9,19 +9,41 @@ st.set_page_config(layout="wide", page_title="Process Maturity Grid")
 if 'projects' not in st.session_state:
     st.session_state['projects'] = []
 
-# Define the AI potential options and their corresponding dot sizes
+# Define options
 AI_OPTIONS = [
     "No further tasks can be done with AI", 
     "Some tasks can be done with AI", 
     "Many tasks could be done with AI"
 ]
 
+# Updated quadrant names
+QUADRANT_OPTIONS = [
+    "Onshore (Top Left)",
+    "onshore+offshore+nearshore (Bottom Left)",
+    "Onshore + Automation (Bottom Right)",
+    "Onshore + AI (Top Right)"
+]
+
 def get_dot_size(ai_potential_answer):
     if ai_potential_answer == AI_OPTIONS[1]:
-        return 24  # Slightly larger dot
+        return 24  
     elif ai_potential_answer == AI_OPTIONS[2]:
-        return 34  # Largest dot
-    return 14      # Current size (default)
+        return 34  
+    return 14      
+
+def get_xy_from_quadrant(quadrant_str):
+    if "Top Left" in quadrant_str: return 0, 1
+    if "Bottom Left" in quadrant_str: return 0, 0
+    if "Bottom Right" in quadrant_str: return 1, 0
+    if "Top Right" in quadrant_str: return 1, 1
+    return 0, 0
+
+def get_quadrant_from_xy(x, y):
+    if x == 0 and y == 1: return QUADRANT_OPTIONS[0]
+    if x == 0 and y == 0: return QUADRANT_OPTIONS[1]
+    if x == 1 and y == 0: return QUADRANT_OPTIONS[2]
+    if x == 1 and y == 1: return QUADRANT_OPTIONS[3]
+    return QUADRANT_OPTIONS[0]
 
 # ==========================================
 # POP-UP DIALOG FUNCTIONS
@@ -31,10 +53,8 @@ def get_dot_size(ai_potential_answer):
 def add_submission_dialog():
     with st.form("add_form", clear_on_submit=True):
         name = st.text_input("Project Name")
-        method = st.selectbox("Method", ["Manual", "AI"])
-        location = st.selectbox("Location", ["Onshore", "Offshore"])
         
-        # New question for dot size
+        quadrant = st.selectbox("Select Quadrant", QUADRANT_OPTIONS)
         ai_potential = st.selectbox("Potential for further AI tasks", AI_OPTIONS)
         
         col1, col2 = st.columns(2)
@@ -45,11 +65,13 @@ def add_submission_dialog():
             if name:
                 jx = random.uniform(-0.15, 0.15)
                 jy = random.uniform(-0.15, 0.15)
+                x, y = get_xy_from_quadrant(quadrant)
+                
                 st.session_state['projects'].append({
                     "name": name,
-                    "x": 0 if method == "Manual" else 1,
-                    "y": 0 if location == "Onshore" else 1,
-                    "ai_potential": ai_potential, # Save the new answer
+                    "x": x,
+                    "y": y,
+                    "ai_potential": ai_potential,
                     "jx": jx,
                     "jy": jy,
                 })
@@ -75,22 +97,20 @@ def edit_submission_dialog(preselected_idx=0):
     st.divider()
     
     new_name = st.text_input("Project Name", value=proj['name'])
-    new_method = st.selectbox("Method", ["Manual", "AI"], index=0 if proj['x'] == 0 else 1)
-    new_location = st.selectbox("Location", ["Onshore", "Offshore"], index=0 if proj['y'] == 0 else 1)
     
-    # Safely get current AI potential (defaults to the first option if it's an older submission)
+    current_quadrant = get_quadrant_from_xy(proj['x'], proj['y'])
+    new_quadrant = st.selectbox("Select Quadrant", QUADRANT_OPTIONS, index=QUADRANT_OPTIONS.index(current_quadrant))
+    
     current_ai_potential = proj.get('ai_potential', AI_OPTIONS[0])
-    current_ai_index = AI_OPTIONS.index(current_ai_potential)
-    
-    # New question for dot size in the edit menu
-    new_ai_potential = st.selectbox("Potential for further AI tasks", AI_OPTIONS, index=current_ai_index)
+    new_ai_potential = st.selectbox("Potential for further AI tasks", AI_OPTIONS, index=AI_OPTIONS.index(current_ai_potential))
     
     col1, col2 = st.columns(2)
     if col1.button("Save Changes", type="primary", use_container_width=True):
+        new_x, new_y = get_xy_from_quadrant(new_quadrant)
         proj['name'] = new_name
-        proj['x'] = 0 if new_method == "Manual" else 1
-        proj['y'] = 0 if new_location == "Onshore" else 1
-        proj['ai_potential'] = new_ai_potential # Update the answer
+        proj['x'] = new_x
+        proj['y'] = new_y
+        proj['ai_potential'] = new_ai_potential 
         st.session_state['projects'][idx] = proj
         st.rerun()
         
@@ -132,23 +152,37 @@ fig.update_layout(
         dict(type='line', x0=0.5, x1=0.5, y0=0, y1=1, line=dict(color='gray')),
         dict(type='line', x0=0, x1=1, y0=0.5, y1=0.5, line=dict(color='gray'))
     ],
-    xaxis=dict(range=[0, 1], tickmode='array', tickvals=[0.25, 0.75], ticktext=['Manual', 'AI'],
-               title='Process Maturity →'),
-    yaxis=dict(range=[0, 1], tickmode='array', tickvals=[0.25, 0.75], ticktext=['Onshore', 'Offshore'],
-               title='Complexity Handled →'),
-    height=1000 
+    xaxis=dict(range=[0, 1], showticklabels=False, title=''),
+    yaxis=dict(range=[0, 1], showticklabels=False, title=''),
+    height=1000, 
+    margin=dict(t=80, b=80, l=40, r=40) 
 )
 
-fig.add_shape(type='line', x0=0, y0=1, x1=1, y1=0, line=dict(color='red', width=2))
-fig.add_annotation(x=1, y=0, ax=0, ay=1, xref='x', yref='y', axref='x', ayref='y',
-                   showarrow=True, arrowhead=2, arrowcolor='red')
+# Custom large labels placed specifically above and below the quadrants
+fig.update_layout(
+    annotations=[
+        # The Red Arrow
+        dict(x=1, y=0, ax=0, ay=1, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowcolor='red'),
+        
+        # Top Left Label
+        dict(x=0.25, y=1.0, text="<b>Onshore</b>", showarrow=False, font=dict(size=22), xanchor='center', yanchor='bottom', xref='x', yref='y'),
+        
+        # Top Right Label
+        dict(x=0.75, y=1.0, text="<b>Onshore + AI</b>", showarrow=False, font=dict(size=22), xanchor='center', yanchor='bottom', xref='x', yref='y'),
+        
+        # Bottom Left Label
+        dict(x=0.25, y=0.0, text="<b>onshore+offshore+nearshore</b>", showarrow=False, font=dict(size=22), xanchor='center', yanchor='top', xref='x', yref='y'),
+        
+        # Bottom Right Label
+        dict(x=0.75, y=0.0, text="<b>Onshore + Automation</b>", showarrow=False, font=dict(size=22), xanchor='center', yanchor='top', xref='x', yref='y')
+    ]
+)
 
 if projects:
     xs = [0.25 + 0.5 * p['x'] + p.get('jx', 0) for p in projects]
     ys = [0.25 + 0.5 * p['y'] + p.get('jy', 0) for p in projects]
     names = [p['name'] for p in projects]
     
-    # Calculate the size for each project dot based on their AI potential answer
     dot_sizes = [get_dot_size(p.get('ai_potential', AI_OPTIONS[0])) for p in projects]
     
     fig.add_trace(go.Scatter(
@@ -157,12 +191,12 @@ if projects:
         text=names,                  
         textposition='top center',   
         marker=dict(
-            size=dot_sizes, # Apply the dynamic sizes here
-            line=dict(width=1, color='DarkSlateGrey') # Added a subtle border so overlapping dots are distinct
+            size=dot_sizes, 
+            line=dict(width=1, color='DarkSlateGrey') 
         ),        
         customdata=list(range(len(projects))),
         hoverinfo='text',
-        hovertext=[f"{p['name']}<br>AI Potential: {p.get('ai_potential', AI_OPTIONS[0])}" for p in projects] # Shows the AI potential on hover
+        hovertext=[f"{p['name']}<br>AI Potential: {p.get('ai_potential', AI_OPTIONS[0])}" for p in projects] 
     ))
 
 event = st.plotly_chart(fig, use_container_width=True, on_select="rerun", selection_mode="points")
@@ -170,3 +204,4 @@ event = st.plotly_chart(fig, use_container_width=True, on_select="rerun", select
 if "selection" in event and "points" in event["selection"] and len(event["selection"]["points"]) > 0:
     clicked_idx = event["selection"]["points"][0]["customdata"]
     edit_submission_dialog(preselected_idx=clicked_idx)
+
