@@ -24,31 +24,35 @@ for i in range(num_projects):
         })
 
 
-# Create a 2x2 grid
+# Create a simple 1×1 square divided into four quadrants
 fig, ax = plt.subplots(figsize=(6, 6))
-ax.set_xticks([0, 1])
-ax.set_yticks([0, 1])
-ax.set_xticklabels(["Manual", "Auto + AI"])
-ax.set_yticklabels(["Onshore", "Offshore"])
-ax.grid(True, which='both', color='gray', linestyle='-', linewidth=1)
+# show only positive quadrant from 0 to 1 in both axes
+ax.set_xlim(0, 1)
+ax.set_ylim(0, 1)
+# ticks at extremes (and optionally midpoint)
+ax.set_xticks([0, 0.5, 1])
+ax.set_yticks([0, 0.5, 1])
+ax.set_xticklabels(["0", "", "1"])
+ax.set_yticklabels(["0", "", "1"])
+# thin background grid just for reference
+ax.grid(False)
+# draw dividing lines to form four equal squares
+ax.axhline(0.5, color='gray', linewidth=1)
+ax.axvline(0.5, color='gray', linewidth=1)
 
-# Draw the grid lines
-for i in range(3):
-    ax.axhline(i-0.5, color='gray', linewidth=1)
-    ax.axvline(i-0.5, color='gray', linewidth=1)
-
-# Draw diagonal arrow (from bottom-left to top-right)
-ax.annotate('', xy=(1.15, 1.15), xytext=(0, 0),
+# Draw arrow corresponding to y = -x (within the unit square)
+# start at (0,1) and end at (1,0)
+ax.annotate('', xy=(1, 0), xytext=(0, 1),
             arrowprops=dict(facecolor='red', edgecolor='red', arrowstyle='->', lw=2))
 
-# Add axis labels
-ax.set_xlabel('Method →')
-ax.set_ylabel('Location →')
+# Add updated axis labels for the requested metrics
+ax.set_xlabel('Process Maturity →')
+ax.set_ylabel('Complexity Handled →')
 ax.xaxis.set_label_coords(0.5, -0.08)
 ax.yaxis.set_label_coords(-0.08, 0.5)
 
-# Add 'Pro Maturity' note
-ax.text(1.25, 0.5, 'Pro Maturity', fontsize=12, rotation=90, va='center', color='blue')
+# remove old Pro Maturity text if any (not needed for now)
+
 
 # Plot projects as points with labels
 for proj in projects:
