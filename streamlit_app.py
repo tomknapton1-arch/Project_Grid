@@ -1,10 +1,7 @@
-
-
 # ensure required libraries are installed and recorded without extra dependencies
 import subprocess, sys, os, importlib.util
 
 def ensure_requirements(packages):
-    # install missing packages and append to requirements.txt
     path = os.path.join(os.path.dirname(__file__), "requirements.txt")
     if os.path.exists(path):
         with open(path) as f:
@@ -16,19 +13,15 @@ def ensure_requirements(packages):
             with open(path, "a") as f:
                 f.write(pkg + "\n")
             existing.add(pkg)
-        # if module not importable, install it
         if importlib.util.find_spec(pkg) is None:
             subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
 
-# list the packages that the app relies on
-ensure_requirements(["streamlit", "matplotlib", "streamlit-plotly-events"])
+# REMOVED 'streamlit-plotly-events' as Streamlit now handles clicks natively
+ensure_requirements(["streamlit", "matplotlib", "plotly"])
 
 import streamlit as st
-# switch to plotly for interactivity
-from streamlit_plotly_events import plotly_events
 import plotly.graph_objects as go
 import random
-
 
 st.title("2x2 Process Maturity Grid")
 
@@ -36,17 +29,17 @@ st.title("2x2 Process Maturity Grid")
 if 'projects' not in st.session_state:
     st.session_state['projects'] = []
 
-# sidebar inputs for adding a single project (no form to avoid confusion)
+# sidebar inputs for adding a single project
 st.sidebar.header("Add Project to Grid")
-# use session_state keys to preserve between reruns
 name = st.sidebar.text_input("Project Name", key='new_name')
 method = st.sidebar.selectbox("Method", ["Manual", "AI"], key='new_method')
 location = st.sidebar.selectbox("Location", ["Onshore", "Offshore"], key='new_location')
+
 if st.sidebar.button("Submit"):
     if name:
-        # generate small jitter to reduce overlap
-        jx = random.uniform(-0.1, 0.1)
-        jy = random.uniform(-0.1, 0.1)
+        # Slightly increased jitter to prevent text/dot overlap
+        jx = random.uniform(-0.15, 0.15)
+        jy = random.uniform(-0.15, 0.15)
         st.session_state['projects'].append({
             "name": name,
             "x": 0 if method == "Manual" else 1,
@@ -55,16 +48,15 @@ if st.sidebar.button("Submit"):
             "jy": jy,
         })
         st.success(f"Added project '{name}'")
-        st.experimental_rerun()
+        st.rerun() # Updated to modern Streamlit rerun command
     else:
         st.sidebar.warning("Please enter a project name before submitting.")
 
-# make a local reference to avoid repeated lookups
 projects = st.session_state['projects']
-
 
 # build plotly figure for interactive grid
 fig = go.Figure()
+
 # quadrant dividing lines
 fig.update_layout(
     shapes=[
@@ -75,50 +67,58 @@ fig.update_layout(
                title='Process Maturity →'),
     yaxis=dict(range=[0, 1], tickmode='array', tickvals=[0.25, 0.75], ticktext=['Onshore', 'Offshore'],
                title='Complexity Handled →'),
-    width=600, height=600
+    width=700, height=600
 )
+
 # arrow representing y = -x within unit square
-fig.add_shape(type='line', x0=0, y0=1, x1=1, y1=0,
-              line=dict(color='red', width=2))
-fig.add_annotation(x=1, y=0, ax=0, ay=1,
-                   xref='x', yref='y', axref='x', ayref='y',
+fig.add_shape(type='line', x0=0, y0=1, x1=1, y1=0, line=dict(color='red', width=2))
+fig.add_annotation(x=1, y=0, ax=0, ay=1, xref='x', yref='y', axref='x', ayref='y',
                    showarrow=True, arrowhead=2, arrowcolor='red')
 
-# add project points (map 0/1 to quadrant centers with jitter)
+# add project points 
 if projects:
     xs = [0.25 + 0.5 * p['x'] + p.get('jx', 0) for p in projects]
     ys = [0.25 + 0.5 * p['y'] + p.get('jy', 0) for p in projects]
     names = [p['name'] for p in projects]
+    
     fig.add_trace(go.Scatter(
-        x=xs, y=ys, mode='markers', marker=dict(size=12),
+        x=xs, y=ys, 
+        mode='markers+text',         # ADDED: Tells Plotly to render text
+        text=names,                  # ADDED: Uses the project names as the text
+        textposition='top center',   # ADDED: Puts the text directly above the dot
+        marker=dict(size=12),
         customdata=list(range(len(projects))),
+        hoverinfo='text',
         hovertext=names
     ))
 
-# render interactive plot and capture clicks
-clicked = plotly_events(fig, click_event=True, key='grid')
+# Render interactive plot natively (fixes double plot and sidebar overlap)
+event = st.plotly_chart(fig, use_container_width=True, on_select="rerun", selection_mode="points")
 
-# if a point was clicked show edit/delete UI
-if clicked and len(clicked) > 0:
-    idx = clicked[0].get('customdata')
+# If a point was clicked, show edit/delete UI
+if "selection" in event and "points" in event["selection"] and len(event["selection"]["points"]) > 0:
+    idx = event["selection"]["points"][0]["customdata"]
+    
     if idx is not None and 0 <= idx < len(projects):
         proj = projects[idx]
-        # display edit controls directly instead of expander
+        st.sidebar.divider()
         st.sidebar.subheader(f"Edit '{proj['name']}'")
+        
         new_name = st.sidebar.text_input("Project Name", value=proj['name'], key=f"edit_name_{idx}")
         new_method = st.sidebar.selectbox("Method", ["Manual", "AI"],
                                           index=0 if proj['x'] == 0 else 1, key=f"edit_method_{idx}")
         new_location = st.sidebar.selectbox("Location", ["Onshore", "Offshore"],
                                             index=0 if proj['y'] == 0 else 1, key=f"edit_loc_{idx}")
-        if st.sidebar.button("Save", key=f"save_{idx}"):
+        
+        # Put Save and Delete buttons side-by-side
+        col1, col2 = st.sidebar.columns(2)
+        if col1.button("Save", key=f"save_{idx}", type="primary"):
             proj['name'] = new_name
             proj['x'] = 0 if new_method == "Manual" else 1
             proj['y'] = 0 if new_location == "Onshore" else 1
             st.session_state['projects'][idx] = proj
-            st.experimental_rerun()
-        if st.sidebar.button("Delete", key=f"delete_{idx}"):
+            st.rerun()
+            
+        if col2.button("Delete", key=f"delete_{idx}"):
             st.session_state['projects'].pop(idx)
-            st.experimental_rerun()
-
-# finally display the figure with modern width parameter
-st.plotly_chart(fig, width='stretch')
+            st.rerun()
